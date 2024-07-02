@@ -1,0 +1,287 @@
+SQL santander bike exercise
+
+/*
+Rough Questions for Bikeshare
+What stations are most popular for starting and ending?
+Demographic analysis of consumers?
+How many customers and subscribers are there?
+Average trip time?
+Peak time ? Trend analysis
+What bikes are most used/popular?
+What docks are most and least popular?
+Different user types for various stations, are there any correlations between the users of different stations?
+
+Total stations
+Total capacity
+Total capacity by area
+Average duration
+Longest duration
+Shortest duration
+Busiest station
+Peak times
+Off peak times
+Most common user type
+Share of riders by gender
+Share of riders by age/ age group / generation
+Capacity of docks by station
+Frequency by age / gender / customer type
+Recommendation for new stations
+*/
+
+
+SELECT * 
+FROM santander_stations;
+
+-- using count to answer the amount of data in each table
+SELECT COUNT(*) 
+FROM santander_2016
+SELECT COUNT(*)
+FROM santander_2017
+SELECT COUNT(*)
+FROM santander_2018
+SELECT COUNT(*)
+FROM santander_2019
+
+SELECT * 
+FROM santander_2016
+LIMIT 100;
+
+--What stations are most popular for starting and ending?
+-- start to break down
+SELECT s1.*
+, ss1.name as start_station
+, ss2.name as end_station
+FROM santander_2016 s1
+JOIN santander_stations ss1
+ON s1.startstationid = ss1.id
+JOIN santander_stations ss2
+ON s1.endstationid = ss2.id
+LIMIT 100
+
+--start station 2016
+SELECT
+ss1.name as start_station
+, COUNT(*)
+FROM santander_2016 s1
+JOIN santander_stations ss1
+ON s1.startstationid = ss1.id
+JOIN santander_stations ss2
+ON s1.endstationid = ss2.id
+GROUP BY 1
+ORDER BY 2 DESC;
+
+--end station 2016
+SELECT
+ss2.name as end_station
+, COUNT (*)
+FROM santander_2016 s1
+JOIN santander_stations ss1
+ON s1.startstationid = ss1.id
+JOIN santander_stations ss2
+ON s1.endstationid = ss2.id
+GROUP BY 1
+ORDER BY 2 DESC;
+
+-- 783 total stations
+SELECT COUNT(*)
+FROM santander_stations
+
+-- longest duration 1mons 22:47
+SELECT start_date
+, end_date 
+, AGE(start_date, end_date) as duration
+FROM santander_2016
+WHERE AGE(start_date, end_date) !=  '%days%'
+ORDER BY 3 
+LIMIT 30
+
+
+-- shortest duration 
+SELECT start_date
+, end_date 
+, AGE(start_date, end_date)as duration
+FROM santander_2016
+WHERE start_date IS NOT NULL AND end_date IS NOT NULL
+ORDER BY 3 DESC
+LIMIT 10;
+
+--average duration
+
+SELECT AVG(AGE(start_date, end_date)) as duration_16
+FROM santander_2016
+WHERE start_date IS NOT NULL AND end_date IS NOT NULL
+
+
+
+
+SELECT DATEDIFF(mi, start_date, end_date)
+FROM santander_2016
+WHERE start_date IS NOT NULL AND end_date IS NOT NULL
+
+
+--amount of docks
+-- Edgware Road 410 - 64
+SELECT * 
+FROM santander_stations
+ORDER BY docks DESC
+
+SELECT * 
+FROM santander_stations
+WHERE name LIKE '%King%' AND name LIKE '%Cross%'
+
+--314
+SELECT SUM(docks) 
+FROM santander_stations
+WHERE name LIKE '%King%' AND name LIKE '%Cross%'
+
+-- how to search LIKE with apostrophe   
+SELECT * FROM public.santander_stations
+WHERE name LIKE '%King''s Cross%';
+
+-- amount of locations and dock in london area
+SELECT
+DISTINCT(SPLIT_PART(name,',',2)) as area
+, COUNT(*) as amount_locations
+, SUM(docks) as amount_docks
+FROM santander_stations
+GROUP BY 1
+
+-- location by area total docks and locations
+SELECT
+CASE 
+WHEN area LIKE '%King''s Cross%' THEN 'Kings Cross'
+WHEN area LIKE '%Parson''s Green%' THEN 'Parsons Green'
+WHEN area LIKE '%St. John''s Wood%' THEN 'St.Johns Wood'
+WHEN area LIKE '% Shephed''s Bush%' THEN 'Shephards Bush'
+ELSE area
+END as new_name
+, SUM (docks) as total_docks
+, COUNT(amount_locations) as amount_locations
+FROM
+(
+ SELECT
+DISTINCT(SPLIT_PART(name,',',2)) as area
+, COUNT(*) as amount_locations
+, docks
+FROM santander_stations
+GROUP BY 1, 3
+) as sq
+GROUP BY new_name
+ORDER BY total_docks DESC
+
+
+-- case when groups
+SELECT *
+, CASE 
+WHEN name LIKE '%King''s Cross%' THEN 'Kings Cross'
+WHEN name LIKE '%Parson''s Green%' THEN 'Parsons Green'
+WHEN name LIKE '%St. John''s Wood%' THEN 'St.Johns Wood'
+WHEN name LIKE '% Shephed''s Bush%' THEN 'Shephards Bush'
+ELSE name
+END as new_name
+FROM santander_stations
+WHERE name LIKE '%King%'
+
+
+
+SELECT name 
+FROM santander_stations
+WHERE name LIKE '%s %'
+
+-- area with %s % in name 
+SELECT area
+FROM
+(SELECT
+DISTINCT(SPLIT_PART(name,',',2)) as area
+, COUNT(*) as amount_locations
+, SUM(docks) as amount_docks
+FROM santander_stations
+GROUP BY 1) as sq
+WHERE area LIKE '%s %'
+
+
+--Peak time ? Trend analysis
+SELECT *
+, DATE_PART
+FROM santander_2016
+
+
+-- to find most popular time of the day
+WITH all_journeys AS (
+  SELECT * FROM santander_2016
+  UNION ALL
+  SELECT * FROM santander_2017
+  UNION ALL
+  SELECT * FROM santander_2018
+  UNION ALL
+  SELECT * FROM santander_2019
+)
+SELECT
+    EXTRACT(HOUR FROM start_date) AS hour_of_day,
+    COUNT(*) AS trip_count
+FROM
+    all_journeys
+GROUP BY
+    hour_of_day
+ORDER BY
+    trip_count DESC
+LIMIT 2;
+
+-- answering myself
+-- extract can pull the ... from the date/time
+SELECT
+    EXTRACT(HOUR FROM start_date) AS hour_of_day,
+    COUNT(*) AS trip_count
+FROM santander_2016
+GROUP BY hour_of_day
+ORDER BY trip_count DESC
+LIMIT 2;
+
+
+-- Cecilla SQL
+
+WITH all_journeys AS (Select * FROM public.santander_2016
+                     UNION
+                     Select * FROM public.santander_2017
+                     UNION
+                     Select * FROM public.santander_2018
+                     UNION
+                     Select * FROM public.santander_2019
+                     ) 
+                     
+
+
+SELECT
+SPLIT_PART(ss1.name, ',', 2) as start_station 
+, COUNT (rental_id) as total_rides
+FROM all_journeys aj
+JOIN public.santander_stations ss1
+ON aj.startstationid = ss1.id
+WHERE DATE_PART('hour',start_date) IN (8, 17)
+GROUP BY 1
+ORDER BY 2 DESC
+LIMIT 10
+;
+
+
+
+WITH all_journeys AS (
+  SELECT * FROM santander_2016
+  UNION ALL
+  SELECT * FROM santander_2017
+  UNION ALL
+  SELECT * FROM santander_2018
+  UNION ALL
+  SELECT * FROM santander_2019
+)
+SELECT
+    EXTRACT(DAY FROM start_date) AS day_of_week,
+    COUNT(*) AS trip_count
+FROM santander_2016
+GROUP BY
+    day_of_week
+ORDER BY
+    trip_count DESC
+LIMIT 10;
+
+
